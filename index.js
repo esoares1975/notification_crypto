@@ -14,9 +14,6 @@ app.listen(PORT, () => {
     console.log(`Health Server running on ${PORT}`);
 });
 
-// Inicialização correta das variáveis de ambiente no padrão CommonJS
-//require('dotenv').config();
-
 import {
     Client,
     GatewayIntentBits,
@@ -28,19 +25,18 @@ import {
     Routes,
     PermissionFlagsBits
 } from "discord.js";
-import pkg from "@google-cloud/translate";
 
-const { Translate } = pkg.v2;
+// Substituindo pelo pacote gratuito de tradução via web
+import { translate } from "google-translate-api-x";
+
 import fs from "fs";
 import path from "path";
-
 import { fileURLToPath } from "url";
-//import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Inicialização do cliente Discord e do tradutor do Google
+// Inicialização do cliente Discord
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -48,9 +44,6 @@ const client = new Client({
         GatewayIntentBits.MessageContent
     ]
 });
-
-// Inicializa o tradutor usando a chave de API do Google Cloud armazenada no Fly.io
-const translate = new Translate({ key: process.env.GOOGLE_TRANSLATE_KEY });
 
 function logger(level, message, error = null) {
     const timestamp = new Date().toISOString();
@@ -126,10 +119,18 @@ client.on('messageCreate', async (message) => {
             if (!targetChannel) return;
 
             let translatedText = originalText;
+            const lang = langCode.toLowerCase(); // Garante minúsculas exigidas pelo tradutor
             
             try {
-                const [translation] = await translate.translate(originalText, langCode);
-                translatedText = translation;
+                // Chamada usando a biblioteca gratuita com tratamento de força de ISO
+                const res = await translate(originalText, { 
+                    to: lang, 
+                    forceTo: true, 
+                    client: 'gtx' 
+                });
+                if (res && res.text) {
+                    translatedText = res.text;
+                }
             } catch (translationError) {
                 logger('error', `Falha ao traduzir para o idioma [${langCode.toUpperCase()}], enviando texto original como contingência.`, translationError);
             }
